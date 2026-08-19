@@ -22,48 +22,90 @@ npm run dev                     # → http://localhost:5173
 
 ---
 
-## Production Build
+## Deploy Frontend to Vercel
 
-### 1. Set environment variables
+### Prerequisites
+- Push your repo to GitHub/GitLab/Bitbucket
+- Create a free account at [vercel.com](https://vercel.com)
 
-**`frontend/.env`**
-```
-VITE_API_URL=https://your-backend-domain.com
-```
+### Steps
 
-**`backend/.env`**
-```
-ALLOWED_ORIGINS=https://your-frontend-domain.com
-```
+1. **Import your repo** on vercel.com → click **New Project**
+2. **Set the root directory** to `frontend` (critical – the repo root has both frontend and backend)
+3. **Configure the build settings:**
+   | Setting | Value |
+   |---------|-------|
+   | Framework | Vite |
+   | Root Directory | `frontend` |
+   | Build Command | `npm run build` |
+   | Output Directory | `dist` |
 
-### 2. Build the frontend
-```bash
-cd frontend
-npm run build          # outputs to frontend/dist/
-npm run preview        # test the production bundle locally → http://localhost:4173
-```
+4. **Add environment variable** (under Project Settings → Environment Variables):
+   ```
+   VITE_API_URL=https://your-backend-name.onrender.com
+   ```
+   > Replace with your actual Render backend URL. This is required – without it the frontend cannot reach the backend.
 
-### 3. Deploy the `dist/` folder
+5. **Deploy** – Vercel will auto-build and deploy. SPA routing is handled by `frontend/vercel.json` (rewrites all routes to `index.html`).
 
-| Platform | Steps |
-|----------|-------|
-| **Vercel** | `npm i -g vercel && vercel --prod` from the `frontend/` dir |
-| **Netlify** | Drag-and-drop the `dist/` folder at app.netlify.com |
-| **GitHub Pages** | Push `dist/` contents to `gh-pages` branch |
-| **NGINX** | Serve `dist/` as the root; add `try_files $uri /index.html` for SPA routing |
+> **Why it works:** `vercel.json` in the `frontend/` directory contains rewrite rules so that navigating to `/assessment` or `/results` (or refreshing those pages) serves `index.html` instead of returning a 404.
 
-> **SPA routing note:** All platforms must redirect non-asset 404s to `index.html` so React Router works on page refresh.
+---
 
-### 4. Deploy the backend
+## Deploy Backend to Render
 
-The FastAPI backend can be deployed to any server running Python 3.9+:
+### Prerequisites
+- Push your repo to GitHub/GitLab/Bitbucket
+- Create a free account at [render.com](https://render.com)
 
-```bash
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 2
-```
+### Steps
 
-Platforms: **Railway**, **Render**, **Fly.io**, **AWS EC2**, **Google Cloud Run**.
+1. **Import your repo** on render.com → click **New** → **Web Service**
+2. **Configure the service:**
+   | Setting | Value |
+   |---------|-------|
+   | Name | `mindmetric-backend` (or anything) |
+   | Runtime | Python 3 |
+   | Root Directory | `backend` |
+   | Build Command | `pip install -r requirements.txt` |
+   | Start Command | `uvicorn main:app --host 0.0.0.0 --port $PORT` |
+   | Instance Type | Free (or Starter for always-on) |
+
+3. **Add environment variable** (under Environment tab):
+   ```
+   ALLOWED_ORIGINS=https://your-app-name.vercel.app
+   ```
+   > Replace with your actual Vercel frontend URL. **This is required** – without it the backend blocks all browser requests from the frontend (CORS).
+
+4. **Deploy** – Render will build and start the FastAPI server. Note the service URL (e.g., `https://mindmetric-backend.onrender.com`).
+
+5. **Update Vercel** – Go back to your Vercel project → Settings → Environment Variables → set `VITE_API_URL` to your Render URL, then **redeploy**.
+
+> **Render free tier note:** The service spins down after inactivity. The first request after idle takes ~30-60s to wake up. Upgrade to a paid plan for always-on.
+
+---
+
+## Deployment Checklist
+
+- [ ] **Backend deployed on Render** and health check returns `{"status": "ok"}` at `https://your-backend.onrender.com/`
+- [ ] **`ALLOWED_ORIGINS`** set on Render to your Vercel frontend URL
+- [ ] **Frontend deployed on Vercel** with root directory set to `frontend`
+- [ ] **`VITE_API_URL`** set on Vercel to your Render backend URL
+- [ ] **Both services redeployed** after setting env vars
+- [ ] **SPA routing works** – refreshing on `/assessment` or `/results` does NOT return 404
+- [ ] **API calls work** – submitting the assessment form returns a prediction
+
+---
+
+## Common Production Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| Blank page or 404 on page refresh | Missing SPA rewrite rules | Ensure `vercel.json` exists in `frontend/` with rewrites |
+| `CORS error` / `blocked by CORS policy` | Backend `ALLOWED_ORIGINS` doesn't include your Vercel URL | Set `ALLOWED_ORIGINS=https://your-app.vercel.app` on Render |
+| `Failed to connect to backend` | `VITE_API_URL` not set or wrong | Set `VITE_API_URL=https://your-backend.onrender.com` on Vercel and redeploy |
+| `502 Bad Gateway` on Render | Backend crashed on startup | Check Render logs; ensure `Mental_Health_Model.pkl` is in the repo |
+| Slow first request on Render | Free tier spin-down | Wait 30-60s or upgrade to paid plan |
 
 ---
 

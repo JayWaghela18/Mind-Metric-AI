@@ -32,7 +32,7 @@ app = FastAPI(
 # ─── CORS ─────────────────────────────────────────────────────────────────────
 # Read allowed origins from the environment variable ALLOWED_ORIGINS.
 # Supply a comma-separated list in production, e.g.:
-#   ALLOWED_ORIGINS=https://your-frontend.com,https://www.your-frontend.com
+#   ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://your-frontend.com
 # Defaults to allowing localhost for local development.
 _raw_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
 ALLOWED_ORIGINS = [o.strip() for o in _raw_origins.split(",") if o.strip()]
